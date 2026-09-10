@@ -71,7 +71,7 @@ class InvoiceEditorDialog(QDialog):
         super().__init__(parent)
         self._context = context
         self._invoice = invoice
-        self.setMinimumSize(700, 500)
+        self.setMinimumSize(1200, 800)
         self._clients: list[Client] = []
         self._build_ui()
         self._load_clients()
