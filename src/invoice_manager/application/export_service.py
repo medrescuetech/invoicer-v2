@@ -43,7 +43,7 @@ class DataExportService:
 
         if target is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-            target = self._config.exports_dir / f"invoice_manager_export_{timestamp}.zip"
+            target = self._config.get_exports_directory() / f"invoice_manager_export_{timestamp}.zip"
         target = Path(target)
         target.parent.mkdir(parents=True, exist_ok=True)
 

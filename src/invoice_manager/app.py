@@ -35,7 +35,7 @@ def _install_exception_hook() -> None:
 def main() -> int:
     """Launch the Invoice & Receipt Manager."""
     config = AppConfig()
-    setup_logging(config.logs_dir)
+    setup_logging(config.get_logs_directory())
     _install_exception_hook()
     log = get_logger("invoice_manager.app")
 

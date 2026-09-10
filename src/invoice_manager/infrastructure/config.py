@@ -22,6 +22,9 @@ class AppConfig:
         "database_mode": "sqlite",
         "data_dir": "",
         "documents_dir": "",
+        "exports_dir": "",
+        "backups_dir": "",
+        "logs_dir": "",
     }
 
     def __init__(self, base_dir: Path | None = None) -> None:
@@ -151,11 +154,23 @@ class AppConfig:
             return path
         return self.documents_dir
 
+    def _custom_directory(self, key: str, default: Path) -> Path:
+        cfg = self.load()
+        custom = cfg.get(key, "")
+        if custom:
+            path = Path(custom)
+            path.mkdir(parents=True, exist_ok=True)
+            return path
+        return default
+
     def get_exports_directory(self) -> Path:
-        return self.exports_dir
+        return self._custom_directory("exports_dir", self.exports_dir)
+
+    def get_backups_directory(self) -> Path:
+        return self._custom_directory("backups_dir", self.backups_dir)
 
     def get_logs_directory(self) -> Path:
-        return self.logs_dir
+        return self._custom_directory("logs_dir", self.logs_dir)
 
     def set_data_directory(self, path: Path) -> None:
         cfg = self.load()
@@ -165,4 +180,19 @@ class AppConfig:
     def set_documents_directory(self, path: Path) -> None:
         cfg = self.load()
         cfg["documents_dir"] = str(Path(path))
+        self.save(cfg)
+
+    def set_exports_directory(self, path: Path) -> None:
+        cfg = self.load()
+        cfg["exports_dir"] = str(Path(path))
+        self.save(cfg)
+
+    def set_backups_directory(self, path: Path) -> None:
+        cfg = self.load()
+        cfg["backups_dir"] = str(Path(path))
+        self.save(cfg)
+
+    def set_logs_directory(self, path: Path) -> None:
+        cfg = self.load()
+        cfg["logs_dir"] = str(Path(path))
         self.save(cfg)

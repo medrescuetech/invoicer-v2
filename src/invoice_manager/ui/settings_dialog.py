@@ -319,6 +319,30 @@ class SettingsDialog(QDialog):
         documents_row.addWidget(docs_reset_btn)
         data_form.addRow("Documents (PDF) folder:", documents_row)
 
+        self._exports_dir = QLineEdit()
+        self._exports_dir.setReadOnly(True)
+        exports_browse_btn = QPushButton("Browse...")
+        exports_browse_btn.clicked.connect(self._browse_exports_dir)
+        exports_reset_btn = QPushButton("Use default")
+        exports_reset_btn.clicked.connect(self._reset_exports_dir)
+        exports_row = QHBoxLayout()
+        exports_row.addWidget(self._exports_dir)
+        exports_row.addWidget(exports_browse_btn)
+        exports_row.addWidget(exports_reset_btn)
+        data_form.addRow("Exports folder:", exports_row)
+
+        self._logs_dir = QLineEdit()
+        self._logs_dir.setReadOnly(True)
+        logs_browse_btn = QPushButton("Browse...")
+        logs_browse_btn.clicked.connect(self._browse_logs_dir)
+        logs_reset_btn = QPushButton("Use default")
+        logs_reset_btn.clicked.connect(self._reset_logs_dir)
+        logs_row = QHBoxLayout()
+        logs_row.addWidget(self._logs_dir)
+        logs_row.addWidget(logs_browse_btn)
+        logs_row.addWidget(logs_reset_btn)
+        data_form.addRow("Logs folder:", logs_row)
+
         self._database_path = QLineEdit()
         self._database_path.setReadOnly(True)
         open_db_btn = QPushButton("Open database location")
@@ -473,6 +497,8 @@ class SettingsDialog(QDialog):
 
         self._data_dir.setText(str(self._context.config.get_data_directory()))
         self._documents_dir.setText(str(self._context.config.get_documents_directory()))
+        self._exports_dir.setText(str(self._context.config.get_exports_directory()))
+        self._logs_dir.setText(str(self._context.config.get_logs_directory()))
         self._database_path.setText(str(self._context.config.db_path()))
         database_cfg = self._context.config.load()
         mode_index = self._database_mode.findData(self._context.config.database_mode())
@@ -533,6 +559,15 @@ class SettingsDialog(QDialog):
         new_documents_dir = Path(self._documents_dir.text())
         if new_documents_dir != self._context.config.get_documents_directory():
             self._context.config.set_documents_directory(new_documents_dir)
+
+        new_exports_dir = Path(self._exports_dir.text())
+        if new_exports_dir != self._context.config.get_exports_directory():
+            self._context.config.set_exports_directory(new_exports_dir)
+
+        new_logs_dir = Path(self._logs_dir.text())
+        if new_logs_dir != self._context.config.get_logs_directory():
+            self._context.config.set_logs_directory(new_logs_dir)
+
         self._context.config.configure_database(
             {
                 "database_mode": self._database_mode.currentData(),
@@ -604,6 +639,26 @@ class SettingsDialog(QDialog):
 
     def _reset_documents_dir(self) -> None:
         self._documents_dir.setText(str(self._context.config.base_dir / "documents"))
+
+    def _browse_exports_dir(self) -> None:
+        path = QFileDialog.getExistingDirectory(
+            self, "Select exports directory", self._exports_dir.text()
+        )
+        if path:
+            self._exports_dir.setText(path)
+
+    def _reset_exports_dir(self) -> None:
+        self._exports_dir.setText(str(self._context.config.base_dir / "exports"))
+
+    def _browse_logs_dir(self) -> None:
+        path = QFileDialog.getExistingDirectory(
+            self, "Select logs directory", self._logs_dir.text()
+        )
+        if path:
+            self._logs_dir.setText(path)
+
+    def _reset_logs_dir(self) -> None:
+        self._logs_dir.setText(str(self._context.config.base_dir / "logs"))
 
     def _use_onedrive(self) -> None:
         onedrive = os.environ.get("ONEDRIVE") or str(Path.home() / "OneDrive")

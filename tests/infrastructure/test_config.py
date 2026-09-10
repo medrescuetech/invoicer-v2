@@ -60,3 +60,29 @@ def test_mysql_database_url_requires_password_environment_variable(tmp_path, mon
     )
     with pytest.raises(RuntimeError, match="MISSING_INVOICE_DB_PASSWORD"):
         config.database_url()
+
+
+def test_custom_data_and_documents_directories_persist(tmp_path):
+    config = AppConfig(tmp_path)
+    custom_data = tmp_path / "custom_data"
+    custom_docs = tmp_path / "custom_docs"
+    config.set_data_directory(custom_data)
+    config.set_documents_directory(custom_docs)
+    assert config.get_data_directory() == custom_data
+    assert config.get_documents_directory() == custom_docs
+    reloaded = AppConfig(tmp_path)
+    assert reloaded.get_data_directory() == custom_data
+    assert reloaded.get_documents_directory() == custom_docs
+
+
+def test_custom_exports_and_logs_directories_persist(tmp_path):
+    config = AppConfig(tmp_path)
+    custom_exports = tmp_path / "custom_exports"
+    custom_logs = tmp_path / "custom_logs"
+    config.set_exports_directory(custom_exports)
+    config.set_logs_directory(custom_logs)
+    assert config.get_exports_directory() == custom_exports
+    assert config.get_logs_directory() == custom_logs
+    reloaded = AppConfig(tmp_path)
+    assert reloaded.get_exports_directory() == custom_exports
+    assert reloaded.get_logs_directory() == custom_logs
