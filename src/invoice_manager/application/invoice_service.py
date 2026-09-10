@@ -10,7 +10,7 @@ from typing import Any, cast
 from invoice_manager.domain.invoices import InvoiceTotals, calculate_line_total
 from invoice_manager.domain.money import Money
 from invoice_manager.domain.numbering import NumberingService, parse_number
-from invoice_manager.domain.statuses import derive_invoice_status
+from invoice_manager.domain.statuses import InvoiceStatus, derive_invoice_status
 from invoice_manager.infrastructure.audit import AuditService
 from invoice_manager.persistence.models import Client, CreditNote, Invoice, InvoiceItem, Payment
 from invoice_manager.persistence.repositories import (
@@ -23,6 +23,9 @@ from invoice_manager.persistence.repositories import (
 
 class InvoiceServiceError(Exception):
     pass
+
+
+_UNSET: Any = object()
 
 
 class InvoiceService:
@@ -49,10 +52,12 @@ class InvoiceService:
 
     def _load_numbering(self) -> NumberingService:
         next_invoice = self._setting_repo.get_int("next_invoice_number", 1)
+        next_quote = self._setting_repo.get_int("next_quote_number", 1)
         next_receipt = self._setting_repo.get_int("next_receipt_number", 1)
         next_credit = self._setting_repo.get_int("next_credit_note_number", 1)
         return NumberingService(
             next_invoice=next_invoice,
+            next_quote=next_quote,
             next_receipt=next_receipt,
             next_credit_note=next_credit,
         )
@@ -60,6 +65,7 @@ class InvoiceService:
     def _persist_numbering(self) -> None:
         # NumberingService uses internal ints; map back by peeking next values.
         self._setting_repo.set("next_invoice_number", str(self._numbering.peek("invoice")[4:]))
+        self._setting_repo.set("next_quote_number", str(self._numbering.peek("quote")[4:]))
         self._setting_repo.set("next_receipt_number", str(self._numbering.peek("receipt")[4:]))
         self._setting_repo.set(
             "next_credit_note_number", str(self._numbering.peek("credit_note")[3:])
@@ -69,7 +75,7 @@ class InvoiceService:
         self,
         client_id: int,
         invoice_date: date | None = None,
-        due_date: date | None = None,
+        due_date: date | None | object = _UNSET,
         notes: str | None = None,
     ) -> Invoice:
         client = (
@@ -79,7 +85,11 @@ class InvoiceService:
             raise InvoiceServiceError("Client not found")
         today = date.today()
         issue_date = invoice_date or today
-        due = due_date or (issue_date + timedelta(days=self._payment_terms_days))
+        due: date | None
+        if due_date is _UNSET:
+            due = issue_date + timedelta(days=self._payment_terms_days)
+        else:
+            due = cast(date | None, due_date)
         invoice = self._invoice_repo.create(
             number="DRAFT",
             sequence_number=-1,
@@ -105,7 +115,7 @@ class InvoiceService:
         client_name: str,
         client_address: str | None = None,
         invoice_date: date | None = None,
-        due_date: date | None = None,
+        due_date: date | None | object = _UNSET,
         notes: str | None = None,
     ) -> Invoice:
         """Create a draft using one-off client details without saving a client."""
@@ -113,7 +123,11 @@ class InvoiceService:
         if not name:
             raise InvoiceServiceError("Client name is required")
         issue_date = invoice_date or date.today()
-        due = due_date or (issue_date + timedelta(days=self._payment_terms_days))
+        due: date | None
+        if due_date is _UNSET:
+            due = issue_date + timedelta(days=self._payment_terms_days)
+        else:
+            due = cast(date | None, due_date)
         invoice = self._invoice_repo.create(
             number="DRAFT",
             sequence_number=-1,
@@ -182,7 +196,7 @@ class InvoiceService:
         self,
         invoice: Invoice,
         issue_date: date,
-        due_date: date,
+        due_date: date | None,
         notes: str | None,
         lines: list[dict[str, Any]],
     ) -> Invoice:
@@ -252,18 +266,73 @@ class InvoiceService:
         self._audit.record("invoice_issued", "invoices", invoice.id, {"number": invoice.number})
         return invoice
 
+    def issue_quote(self, invoice: Invoice) -> Invoice:
+        """Issue a draft as a quote, assigning a QTE- number and quoted status."""
+        if not invoice.is_draft:
+            raise InvoiceServiceError("Quote is already issued")
+        if not invoice.items:
+            raise InvoiceServiceError("Cannot issue a quote with no line items")
+        if invoice.number == "DRAFT":
+            number = self._numbering.reserve("quote")
+            invoice.number = number
+            invoice.sequence_number = int(number.split("-")[1])
+        else:
+            # Re-issuing a previously issued/retracted quote; keep the number.
+            parsed = parse_number(invoice.number)
+            if parsed:
+                _, seq = parsed
+                current = int(self._numbering.peek("quote").split("-", 1)[1])
+                if seq >= current:
+                    self._numbering.set_next("quote", seq + 1)
+                invoice.sequence_number = seq
+        invoice.is_draft = False
+        invoice.status = InvoiceStatus.QUOTED.value
+        self._persist_numbering()
+        self._update_status(invoice)
+        self._audit.record("quote_issued", "invoices", invoice.id, {"number": invoice.number})
+        return invoice
+
+    def convert_quote_to_invoice(self, invoice: Invoice) -> Invoice:
+        """Upgrade a quote to an invoice, allocating an INV- number."""
+        if not invoice.is_quote:
+            raise InvoiceServiceError("Only quotes can be converted to invoices")
+        if invoice.is_void or invoice.is_cancelled:
+            raise InvoiceServiceError("Cannot convert void or cancelled quote")
+        quote_number = invoice.number
+        number = self._numbering.reserve("invoice")
+        invoice.number = number
+        invoice.sequence_number = int(number.split("-")[1])
+        invoice.is_draft = False
+        if not invoice.reference:
+            invoice.reference = quote_number
+        if invoice.due_date is None:
+            issue = cast(date, invoice.issue_date)
+            due: date | None = issue + timedelta(days=self._payment_terms_days)
+            invoice.due_date = due  # type: ignore[assignment]
+        self._persist_numbering()
+        self._update_status(invoice)
+        self._audit.record(
+            "quote_converted",
+            "invoices",
+            invoice.id,
+            {"quote_number": quote_number, "invoice_number": number},
+        )
+        return invoice
+
     def reissue(self, invoice: Invoice) -> Invoice:
-        """Issue or re-issue an invoice that has a number assigned."""
+        """Issue or re-issue an invoice/quote that has a number assigned."""
         if not invoice.is_draft:
             raise InvoiceServiceError("Invoice is already issued")
         if invoice.number == "DRAFT":
             raise InvoiceServiceError("Invoice has no number to reissue")
         if invoice.is_void or invoice.is_cancelled:
             raise InvoiceServiceError("Cannot reissue void or cancelled invoice")
+        if invoice.is_quote:
+            return self.issue_quote(invoice)
         return self.issue(invoice)
 
     def retract(self, invoice: Invoice) -> Invoice:
-        """Revert an issued invoice to draft so it can be edited."""
+        """Revert an issued invoice/quote to draft so it can be edited."""
         if invoice.is_draft:
             raise InvoiceServiceError("Invoice is already a draft")
         if invoice.is_void or invoice.is_cancelled:
@@ -344,7 +413,7 @@ class InvoiceService:
         draft = self.create_draft(
             client_id=invoice.client_id,
             invoice_date=cast(date, invoice.issue_date),
-            due_date=cast(date, invoice.due_date),
+            due_date=invoice.due_date,
             notes=invoice.notes,
         )
         for item in invoice.items:
@@ -397,6 +466,7 @@ class InvoiceService:
             due_date=cast(date, invoice.due_date),
             is_cancelled=invoice.is_cancelled,
             is_void=invoice.is_void,
+            is_quote=invoice.is_quote,
         ).value
 
     def _balance(self, invoice: Invoice) -> Money:
@@ -429,7 +499,7 @@ class InvoiceService:
         client_name: str,
         client_address: str | None,
         issue_date: date,
-        due_date: date,
+        due_date: date | None,
         subtotal_cents: int,
         gst_cents: int,
         total_cents: int,
@@ -533,6 +603,16 @@ class InvoiceService:
     def set_next_invoice_number(self, value: int) -> None:
         """Adjust the next invoice number to be used for new issues."""
         self._numbering.set_next("invoice", max(1, value))
+        self._persist_numbering()
+
+    def set_next_quote_number(self, value: int) -> None:
+        """Adjust the next quote number to be used for new issues."""
+        self._numbering.set_next("quote", max(1, value))
+        self._persist_numbering()
+
+    def set_next_credit_note_number(self, value: int) -> None:
+        """Adjust the next credit note number to be used for new credit notes."""
+        self._numbering.set_next("credit_note", max(1, value))
         self._persist_numbering()
 
     @staticmethod

@@ -24,11 +24,12 @@ from invoice_manager.persistence.models import Invoice
 
 
 class InvoicePDFBuilder:
-    """Build an invoice PDF from an Invoice model."""
+    """Build an invoice or quote PDF from an Invoice model."""
 
-    def __init__(self, invoice: Invoice, settings: dict[str, Any]) -> None:
+    def __init__(self, invoice: Invoice, settings: dict[str, Any], is_quote: bool = False) -> None:
         self.invoice = invoice
         self.settings = settings
+        self.is_quote = is_quote
 
     def _fmt(self, cents: int) -> str:
         return Money(cents=cents).__str__()
@@ -38,6 +39,15 @@ class InvoicePDFBuilder:
         if not value:
             return default
         return str(value)
+
+    def _label(self, key: str, default: str = "") -> str:
+        """Return a quote-specific label if available, otherwise the invoice label."""
+        if self.is_quote:
+            quote_key = f"quote_{key.removeprefix('invoice_')}"
+            value = self.settings.get(quote_key)
+            if value:
+                return str(value)
+        return self._get(key, default)
 
     def build(self, output_path: Path) -> Path:
         output_path = Path(output_path)
@@ -66,29 +76,36 @@ class InvoicePDFBuilder:
         story.append(Paragraph(self._get("business_address"), styles["Normal"]))
         story.append(Spacer(1, 6 * mm))
 
-        # Invoice meta
+        # Document meta
         gst_rate = Decimal(self._get("gst_rate", "0.0") or "0.0")
-        doc_title = (
-            self._get("invoice_title_tax", "TAX INVOICE")
-            if gst_rate > 0
-            else self._get("invoice_title", "INVOICE")
-        )
+        if self.is_quote:
+            doc_title = (
+                self._get("quote_title_tax", "TAX QUOTE")
+                if gst_rate > 0
+                else self._get("quote_title", "QUOTE")
+            )
+            date_label = self._get("quote_date_label", "Quote date:")
+            due_label = self._get("quote_due_date_label", "Valid until:")
+            due_value = str(self.invoice.due_date) if self.invoice.due_date else self._get("quote_due_date_na_text", "N/A")
+        else:
+            doc_title = (
+                self._get("invoice_title_tax", "TAX INVOICE")
+                if gst_rate > 0
+                else self._get("invoice_title", "INVOICE")
+            )
+            date_label = self._get("invoice_date_label", "Date:")
+            due_label = self._get("invoice_due_date_label", "Due date:")
+            due_value = str(self.invoice.due_date) if self.invoice.due_date else self._get("invoice_due_date_na_text", "N/A")
         story.append(Paragraph(f"<b>{doc_title}</b> — {self.invoice.number}", styles["Heading2"]))
         meta = [
+            [date_label, str(self.invoice.issue_date)],
+            [due_label, due_value],
             [
-                self._get("invoice_date_label", "Date:"),
-                str(self.invoice.issue_date),
-            ],
-            [
-                self._get("invoice_due_date_label", "Due date:"),
-                str(self.invoice.due_date or ""),
-            ],
-            [
-                self._get("invoice_client_label", "Client:"),
+                self._label("invoice_client_label", "Client:"),
                 self.invoice.client_name,
             ],
             [
-                self._get("invoice_address_label", "Address:"),
+                self._label("invoice_address_label", "Address:"),
                 self.invoice.client_address or "",
             ],
         ]
@@ -98,12 +115,12 @@ class InvoicePDFBuilder:
         # Line items
         data: list[list[Any]] = [
             [
-                self._get("invoice_description_header", "Description"),
-                self._get("invoice_qty_header", "Qty"),
-                self._get("invoice_unit_header", "Unit"),
-                self._get("invoice_price_header", "Price"),
-                self._get("invoice_gst_header", "GST"),
-                self._get("invoice_total_header", "Total"),
+                self._label("invoice_description_header", "Description"),
+                self._label("invoice_qty_header", "Qty"),
+                self._label("invoice_unit_header", "Unit"),
+                self._label("invoice_price_header", "Price"),
+                self._label("invoice_gst_header", "GST"),
+                self._label("invoice_total_header", "Total"),
             ]
         ]
         for item in self.invoice.items:
@@ -118,30 +135,32 @@ class InvoicePDFBuilder:
                 ]
             )
         data.append(
-            ["", "", "", self._get("invoice_subtotal_label", "Subtotal"), "", self._fmt(self.invoice.subtotal_cents)]
+            ["", "", "", self._label("invoice_subtotal_label", "Subtotal"), "", self._fmt(self.invoice.subtotal_cents)]
         )
         data.append(
-            ["", "", "", self._get("invoice_gst_label", "GST"), "", self._fmt(self.invoice.gst_cents)]
+            ["", "", "", self._label("invoice_gst_label", "GST"), "", self._fmt(self.invoice.gst_cents)]
         )
         data.append(
-            ["", "", "", self._get("invoice_total_label", "Total"), "", self._fmt(self.invoice.total_cents)]
+            ["", "", "", self._label("invoice_total_label", "Total"), "", self._fmt(self.invoice.total_cents)]
         )
 
-        # Payment summary
-        paid_cents = sum(
-            p.amount_cents for p in self.invoice.payments if not p.is_reversed
-        )
-        credit_cents = sum(c.amount_cents for c in self.invoice.credits)
-        amount_paid = paid_cents + credit_cents
-        balance_due = invoice_balance_cents(self.invoice)
-        data.append(
-            ["", "", "", self._get("invoice_amount_paid_label", "Amount Paid"), "", self._fmt(amount_paid)]
-        )
-        data.append(
-            ["", "", "", self._get("invoice_balance_due_label", "Balance Due"), "", self._fmt(balance_due)]
-        )
+        # Payment summary (invoices only)
+        if not self.is_quote:
+            paid_cents = sum(
+                p.amount_cents for p in self.invoice.payments if not p.is_reversed
+            )
+            credit_cents = sum(c.amount_cents for c in self.invoice.credits)
+            amount_paid = paid_cents + credit_cents
+            balance_due = invoice_balance_cents(self.invoice)
+            data.append(
+                ["", "", "", self._label("invoice_amount_paid_label", "Amount Paid"), "", self._fmt(amount_paid)]
+            )
+            data.append(
+                ["", "", "", self._label("invoice_balance_due_label", "Balance Due"), "", self._fmt(balance_due)]
+            )
 
         table = Table(data, colWidths=[70 * mm, 15 * mm, 20 * mm, 25 * mm, 20 * mm, 25 * mm])
+        summary_rows = 3 if self.is_quote else 5
         table.setStyle(
             TableStyle(
                 [
@@ -151,7 +170,7 @@ class InvoicePDFBuilder:
                     ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                     ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
                     ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTNAME", (0, -5), (-1, -1), "Helvetica-Bold"),
+                    ("FONTNAME", (0, -summary_rows), (-1, -1), "Helvetica-Bold"),
                 ]
             )
         )
@@ -159,49 +178,56 @@ class InvoicePDFBuilder:
         story.append(Spacer(1, 8 * mm))
 
         # Payment details / notes
-        bank_name = self._get("bank_name")
-        bsb = self._get("bank_bsb")
-        account = self._get("bank_account")
-        account_name = self._get("bank_account_name")
-        if bank_name or account:
-            story.append(
-                Paragraph(
-                    f"<b>{self._get('invoice_payment_details_label', 'Payment details')}</b>",
-                    styles["Heading3"],
+        if not self.is_quote:
+            bank_name = self._get("bank_name")
+            bsb = self._get("bank_bsb")
+            account = self._get("bank_account")
+            account_name = self._get("bank_account_name")
+            if bank_name or account:
+                story.append(
+                    Paragraph(
+                        f"<b>{self._label('invoice_payment_details_label', 'Payment details')}</b>",
+                        styles["Heading3"],
+                    )
                 )
-            )
-            story.append(
-                Paragraph(
-                    f"{self._get('invoice_bank_label', 'Bank:')} {bank_name}  |  "
-                    f"{self._get('invoice_bsb_label', 'BSB:')} {bsb}  |  "
-                    f"{self._get('invoice_account_label', 'Account:')} {account}  |  "
-                    f"{self._get('invoice_account_name_label', 'Name:')} {account_name}",
-                    styles["Normal"],
+                story.append(
+                    Paragraph(
+                        f"{self._label('invoice_bank_label', 'Bank:')} {bank_name}  |  "
+                        f"{self._label('invoice_bsb_label', 'BSB:')} {bsb}  |  "
+                        f"{self._label('invoice_account_label', 'Account:')} {account}  |  "
+                        f"{self._label('invoice_account_name_label', 'Name:')} {account_name}",
+                        styles["Normal"],
+                    )
                 )
-            )
-            story.append(Spacer(1, 4 * mm))
+                story.append(Spacer(1, 4 * mm))
 
-        payment_terms_note = self._get("invoice_payment_terms_note", "")
-        if payment_terms_note:
-            story.append(
-                Paragraph(f"<b>Payment Terms:</b> {payment_terms_note}", styles["Normal"])
-            )
-            story.append(Spacer(1, 2 * mm))
+            payment_terms_note = self._get("invoice_payment_terms_note", "")
+            if payment_terms_note:
+                story.append(
+                    Paragraph(f"<b>Payment Terms:</b> {payment_terms_note}", styles["Normal"])
+                )
+                story.append(Spacer(1, 2 * mm))
 
         if self.invoice.notes:
             story.append(
                 Paragraph(
-                    f"<b>{self._get('invoice_notes_label', 'Notes:')}</b> {self.invoice.notes}",
+                    f"<b>{self._label('invoice_notes_label', 'Notes:')}</b> {self.invoice.notes}",
                     styles["Normal"],
                 )
             )
 
-        gst_footer = self._get("invoice_gst_footer_note", "")
-        if gst_footer:
-            story.append(Spacer(1, 4 * mm))
-            story.append(Paragraph(gst_footer, styles["Normal"]))
+        if self.is_quote:
+            quote_footer = self._get("quote_footer_note", "")
+            if quote_footer:
+                story.append(Spacer(1, 4 * mm))
+                story.append(Paragraph(quote_footer, styles["Normal"]))
+        else:
+            gst_footer = self._get("invoice_gst_footer_note", "")
+            if gst_footer:
+                story.append(Spacer(1, 4 * mm))
+                story.append(Paragraph(gst_footer, styles["Normal"]))
 
-        thank_you = self._get("invoice_thank_you", "Thank you for your business!")
+        thank_you = self._label("invoice_thank_you", "Thank you for your business!")
         if thank_you:
             story.append(Spacer(1, 8 * mm))
             story.append(Paragraph(thank_you, styles["Normal"]))
@@ -211,7 +237,11 @@ class InvoicePDFBuilder:
 
 
 def generate_invoice_pdf(invoice: Invoice, settings: dict[str, Any], output_path: Path) -> Path:
-    return InvoicePDFBuilder(invoice, settings).build(output_path)
+    return InvoicePDFBuilder(invoice, settings, is_quote=False).build(output_path)
+
+
+def generate_quote_pdf(invoice: Invoice, settings: dict[str, Any], output_path: Path) -> Path:
+    return InvoicePDFBuilder(invoice, settings, is_quote=True).build(output_path)
 
 
 class ReportPDFBuilder:

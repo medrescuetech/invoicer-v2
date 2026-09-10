@@ -7,6 +7,7 @@ from collections.abc import Iterable
 
 _PREFIXES = {
     "invoice": "INV",
+    "quote": "QTE",
     "receipt": "RCT",
     "credit_note": "CN",
 }
@@ -23,11 +24,13 @@ class NumberingService:
     def __init__(
         self,
         next_invoice: int = 1,
+        next_quote: int = 1,
         next_receipt: int = 1,
         next_credit_note: int = 1,
     ) -> None:
         self._next = {
             "invoice": max(1, next_invoice),
+            "quote": max(1, next_quote),
             "receipt": max(1, next_receipt),
             "credit_note": max(1, next_credit_note),
         }
@@ -67,7 +70,7 @@ def parse_number(value: str) -> tuple[str, int] | None:
     if not s:
         return None
     # INV-0001, INV 0001, INV_0001
-    m = re.match(r"^(INV|RCT|CN)[\s_-]*(\d+)$", s)
+    m = re.match(r"^(INV|QTE|RCT|CN)[\s_-]*(\d+)$", s)
     if m:
         return m.group(1), int(m.group(2))
     # plain digits

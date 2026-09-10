@@ -53,6 +53,7 @@ class SettingsDialog(QDialog):
         "invoice_title",
         "invoice_date_label",
         "invoice_due_date_label",
+        "invoice_due_date_na_text",
         "invoice_client_label",
         "invoice_address_label",
         "invoice_description_header",
@@ -82,6 +83,7 @@ class SettingsDialog(QDialog):
         "invoice_title": "INVOICE",
         "invoice_date_label": "Date:",
         "invoice_due_date_label": "Due date:",
+        "invoice_due_date_na_text": "N/A",
         "invoice_client_label": "Client:",
         "invoice_address_label": "Address:",
         "invoice_description_header": "Description",
@@ -126,6 +128,48 @@ class SettingsDialog(QDialog):
         "receipt_thank_you": "Thank you for your payment.",
     }
 
+    _QUOTE_WORDING = [
+        "quote_title",
+        "quote_title_tax",
+        "quote_date_label",
+        "quote_due_date_label",
+        "quote_due_date_na_text",
+        "quote_subtotal_label",
+        "quote_gst_label",
+        "quote_total_label",
+        "quote_amount_paid_label",
+        "quote_balance_due_label",
+        "quote_payment_details_label",
+        "quote_bank_label",
+        "quote_bsb_label",
+        "quote_account_label",
+        "quote_account_name_label",
+        "quote_notes_label",
+        "quote_thank_you",
+        "quote_footer_note",
+    ]
+
+    _QUOTE_DEFAULTS = {
+        "quote_title": "QUOTE",
+        "quote_title_tax": "TAX QUOTE",
+        "quote_date_label": "Quote date:",
+        "quote_due_date_label": "Valid until:",
+        "quote_due_date_na_text": "N/A",
+        "quote_subtotal_label": "Subtotal",
+        "quote_gst_label": "GST",
+        "quote_total_label": "Total",
+        "quote_amount_paid_label": "Amount Paid",
+        "quote_balance_due_label": "Balance Due",
+        "quote_payment_details_label": "Payment details",
+        "quote_bank_label": "Bank:",
+        "quote_bsb_label": "BSB:",
+        "quote_account_label": "Account:",
+        "quote_account_name_label": "Name:",
+        "quote_notes_label": "Notes:",
+        "quote_thank_you": "Thank you for considering our services.",
+        "quote_footer_note": "This is a quote, not an invoice. Prices are valid for 30 days unless otherwise stated.",
+    }
+
     _DEFAULT_VALUES: dict[str, Any] = {
         "business_name": "Alexander Gillam",
         "business_address": "15 Dalkeith Drive, Point Cook",
@@ -142,8 +186,10 @@ class SettingsDialog(QDialog):
         "payment_terms_days": 7,
         "financial_year_start_month": 7,
         "next_invoice_number": 1,
+        "next_quote_number": 1,
         "next_receipt_number": 1,
         "next_credit_note_number": 1,
+        "invoice_due_date_na_text": "N/A",
         "report_header_colour": "#2C3E50",
         "report_accent_colour": "#2980B9",
         "report_stripe_colour": "#EBF5FB",
@@ -193,9 +239,15 @@ class SettingsDialog(QDialog):
         self._next_invoice = QSpinBox()
         self._next_invoice.setRange(1, 999999)
         biz_form.addRow("Next invoice number:", self._next_invoice)
+        self._next_quote = QSpinBox()
+        self._next_quote.setRange(1, 999999)
+        biz_form.addRow("Next quote number:", self._next_quote)
         self._next_receipt = QSpinBox()
         self._next_receipt.setRange(1, 999999)
         biz_form.addRow("Next receipt number:", self._next_receipt)
+        self._next_credit_note = QSpinBox()
+        self._next_credit_note.setRange(1, 999999)
+        biz_form.addRow("Next credit note number:", self._next_credit_note)
         biz_group.setLayout(biz_form)
         tabs.addTab(biz_group, "Business")
 
@@ -334,6 +386,16 @@ class SettingsDialog(QDialog):
         receipt_group.setLayout(receipt_form)
         tabs.addTab(receipt_group, "Receipt")
 
+        # Quote wording tab
+        quote_group = QGroupBox("Quote PDF wording")
+        quote_form = QFormLayout()
+        for key in self._QUOTE_WORDING:
+            edit = QLineEdit()
+            quote_form.addRow(self._label(key), edit)
+            self._fields[key] = edit
+        quote_group.setLayout(quote_form)
+        tabs.addTab(quote_group, "Quote")
+
         layout.addWidget(tabs)
 
         bbox = QDialogButtonBox(
@@ -351,6 +413,7 @@ class SettingsDialog(QDialog):
             **self._DEFAULT_VALUES,
             **self._INVOICE_DEFAULTS,
             **self._RECEIPT_DEFAULTS,
+            **self._QUOTE_DEFAULTS,
         }
         return defaults.get(key)
 
@@ -369,8 +432,14 @@ class SettingsDialog(QDialog):
         self._next_invoice.setValue(
             settings.get_int("next_invoice_number", self._default_for("next_invoice_number"))
         )
+        self._next_quote.setValue(
+            settings.get_int("next_quote_number", self._default_for("next_quote_number"))
+        )
         self._next_receipt.setValue(
             settings.get_int("next_receipt_number", self._default_for("next_receipt_number"))
+        )
+        self._next_credit_note.setValue(
+            settings.get_int("next_credit_note_number", self._default_for("next_credit_note_number"))
         )
 
         self._report_header_colour.setText(
@@ -435,11 +504,15 @@ class SettingsDialog(QDialog):
         settings.set("financial_year_start_month", str(self._fy_start.value()))
 
         self._context.invoice_service.set_next_invoice_number(self._next_invoice.value())
+        self._context.invoice_service.set_next_quote_number(self._next_quote.value())
         self._context.payment_service.set_next_receipt_number(self._next_receipt.value())
+        self._context.invoice_service.set_next_credit_note_number(self._next_credit_note.value())
 
         # Also store the number settings in case services have not flushed yet.
         settings.set("next_invoice_number", str(self._next_invoice.value()))
+        settings.set("next_quote_number", str(self._next_quote.value()))
         settings.set("next_receipt_number", str(self._next_receipt.value()))
+        settings.set("next_credit_note_number", str(self._next_credit_note.value()))
 
         settings.set("report_header_colour", self._report_header_colour.text().strip())
         settings.set("report_accent_colour", self._report_accent_colour.text().strip())

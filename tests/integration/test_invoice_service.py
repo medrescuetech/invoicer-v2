@@ -306,3 +306,28 @@ def test_cannot_retract_invoice_with_payment(invoice_deps):
     session.refresh(inv)
     with pytest.raises(InvoiceServiceError):
         service.retract(inv)
+
+
+def test_quote_lifecycle_and_conversion(invoice_deps):
+    service, client, session = invoice_deps
+    quote = service.create_draft(client.id, due_date=None)
+    service.add_line(quote, "Quote work", 2, 5000)
+    service.issue_quote(quote)
+    assert quote.is_quote
+    assert quote.number == "QTE-0001"
+    assert quote.status == InvoiceStatus.QUOTED.value
+    assert quote.due_date is None
+    service.convert_quote_to_invoice(quote)
+    assert not quote.is_quote
+    assert quote.number.startswith("INV")
+    assert quote.due_date is not None
+    assert quote.status in {InvoiceStatus.ISSUED.value, InvoiceStatus.PAID.value}
+
+
+def test_invoice_na_due_date_preserved(invoice_deps):
+    service, client, session = invoice_deps
+    inv = service.create_draft(client.id, due_date=None)
+    service.add_line(inv, "Work", 1, 10000)
+    service.issue(inv)
+    assert inv.due_date is None
+    assert inv.status == InvoiceStatus.ISSUED.value

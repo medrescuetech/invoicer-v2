@@ -25,9 +25,18 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from invoice_manager.documents.invoice_docx import generate_invoice_docx
-from invoice_manager.documents.invoice_pdf import generate_invoice_pdf
-from invoice_manager.documents.invoice_xlsx import generate_invoice_xlsx
+from invoice_manager.documents.invoice_docx import (
+    generate_invoice_docx,
+    generate_quote_docx,
+)
+from invoice_manager.documents.invoice_pdf import (
+    generate_invoice_pdf,
+    generate_quote_pdf,
+)
+from invoice_manager.documents.invoice_xlsx import (
+    generate_invoice_xlsx,
+    generate_quote_xlsx,
+)
 from invoice_manager.documents.reminder_pdf import generate_reminder_pdf
 from invoice_manager.domain.money import Money
 from invoice_manager.domain.statuses import invoice_balance_cents
@@ -57,11 +66,14 @@ class InvoiceListPage(QWidget):
         toolbar = QHBoxLayout()
         new_btn = QPushButton("New Invoice")
         new_btn.clicked.connect(self._new_invoice)
+        new_quote_btn = QPushButton("New Quote")
+        new_quote_btn.clicked.connect(self._new_quote)
         manual_btn = QPushButton("Record Manual Invoice")
         manual_btn.clicked.connect(self._record_manual)
         refresh_btn = QPushButton("Refresh")
         refresh_btn.clicked.connect(self.refresh)
         toolbar.addWidget(new_btn)
+        toolbar.addWidget(new_quote_btn)
         toolbar.addWidget(manual_btn)
         toolbar.addWidget(refresh_btn)
         toolbar.addStretch()
@@ -75,6 +87,7 @@ class InvoiceListPage(QWidget):
         self._status_filter.addItem("All", None)
         for label, value in [
             ("Draft", "draft"),
+            ("Quoted", "quoted"),
             ("Issued", "issued"),
             ("Part paid", "part_paid"),
             ("Paid", "paid"),
@@ -112,6 +125,8 @@ class InvoiceListPage(QWidget):
         edit_btn.clicked.connect(self._edit_invoice)
         dup_btn = QPushButton("Duplicate")
         dup_btn.clicked.connect(self._duplicate_invoice)
+        upgrade_btn = QPushButton("Upgrade to Invoice")
+        upgrade_btn.clicked.connect(self._upgrade_quote)
         history_btn = QPushButton("History")
         history_btn.clicked.connect(self._show_history)
         open_pdf_btn = QPushButton("Open PDF")
@@ -130,6 +145,7 @@ class InvoiceListPage(QWidget):
         regen_btn.clicked.connect(self._regenerate_pdf)
         action_bar.addWidget(edit_btn)
         action_bar.addWidget(dup_btn)
+        action_bar.addWidget(upgrade_btn)
         action_bar.addWidget(history_btn)
         action_bar.addWidget(open_pdf_btn)
         action_bar.addWidget(xlsx_btn)
@@ -158,16 +174,23 @@ class InvoiceListPage(QWidget):
             and (status is None or inv.status == status)
         ]
         self._table.setRowCount(len(self._invoices))
+        na_text = self._context.setting_repo.get("invoice_due_date_na_text") or "N/A"
         for row, inv in enumerate(self._invoices):
             self._table.setItem(row, 0, QTableWidgetItem(inv.number))
             self._table.setItem(row, 1, QTableWidgetItem(str(inv.issue_date)))
-            self._table.setItem(row, 2, QTableWidgetItem(str(inv.due_date or "")))
+            self._table.setItem(row, 2, QTableWidgetItem(str(inv.due_date) if inv.due_date else na_text))
             self._table.setItem(row, 3, QTableWidgetItem(inv.client_name))
             self._table.setItem(row, 4, QTableWidgetItem(f"${inv.total_cents / 100:.2f}"))
             self._table.setItem(row, 5, QTableWidgetItem(f"${self._balance(inv) / 100:.2f}"))
             status_combo = QComboBox()
             status_combo.addItem(inv.status.replace("_", " ").title(), inv.status)
-            if inv.is_draft:
+            if inv.is_quote:
+                if inv.is_draft:
+                    status_combo.addItem("Issued", "issued")
+                else:
+                    status_combo.addItem("Draft", "draft")
+                status_combo.addItem("Upgrade to invoice", "upgrade")
+            elif inv.is_draft:
                 status_combo.addItem("Issued", "issued")
             elif not inv.is_void and not inv.is_cancelled and inv.status != "duplicate":
                 if not inv.payments and not inv.credits:
@@ -190,7 +213,12 @@ class InvoiceListPage(QWidget):
         target = combo.currentData()
         try:
             if target == "issued":
-                self._context.invoice_service.issue(invoice)
+                if invoice.is_quote:
+                    self._context.invoice_service.issue_quote(invoice)
+                else:
+                    self._context.invoice_service.issue(invoice)
+            elif target == "upgrade":
+                self._context.invoice_service.convert_quote_to_invoice(invoice)
             elif target == "paid":
                 dialog = RecordPaymentDialog(self._context, invoice=invoice, parent=self)
                 if dialog.exec() != 1:
@@ -256,6 +284,15 @@ class InvoiceListPage(QWidget):
         if dlg.exec() == 1:
             self.refresh()
 
+    def _new_quote(self) -> None:
+        from invoice_manager.ui.invoice_editor import InvoiceEditorDialog
+        dlg = InvoiceEditorDialog(self._context, parent=self)
+        # Start the dialog in quote mode by selecting Quote before it is shown.
+        if hasattr(dlg, "_document_type"):
+            dlg._document_type.setCurrentText("Quote")
+        if dlg.exec() == 1:
+            self.refresh()
+
     def _record_manual(self) -> None:
         dlg = ManualInvoiceDialog(self._context, parent=self)
         if dlg.exec() == 1:
@@ -264,11 +301,11 @@ class InvoiceListPage(QWidget):
     def _edit_invoice(self) -> None:
         inv = self._selected_invoice()
         if inv is None:
-            QMessageBox.information(self, "Select invoice", "Select an invoice to edit.")
+            QMessageBox.information(self, "Select invoice", "Select an invoice or quote to edit.")
             return
         if inv.is_void or inv.is_cancelled:
             QMessageBox.information(
-                self, "Cannot edit", "Void or cancelled invoices cannot be edited."
+                self, "Cannot edit", "Void or cancelled documents cannot be edited."
             )
             return
         dlg = InvoiceEditorDialog(self._context, invoice=inv, parent=self)
@@ -279,6 +316,9 @@ class InvoiceListPage(QWidget):
         inv = self._selected_invoice()
         if inv is None:
             QMessageBox.information(self, "Select invoice", "Select an invoice to credit.")
+            return
+        if inv.is_quote:
+            QMessageBox.information(self, "Cannot credit", "Quotes cannot receive credit notes.")
             return
         if inv.is_draft or inv.is_void or inv.is_cancelled:
             QMessageBox.information(
@@ -295,11 +335,13 @@ class InvoiceListPage(QWidget):
             QMessageBox.information(self, "Select invoice", "Select an invoice to cancel.")
             return
         if inv.is_cancelled or inv.is_void or inv.is_draft:
+            label = "Quote" if inv.is_quote else "Invoice"
             QMessageBox.information(
-                self, "Cannot cancel", "Invoice is already cancelled, void, or a draft."
+                self, "Cannot cancel", f"{label} is already cancelled, void, or a draft."
             )
             return
-        reason, ok = QInputDialog.getText(self, "Cancel Invoice", "Reason for cancellation:")
+        label = "Quote" if inv.is_quote else "Invoice"
+        reason, ok = QInputDialog.getText(self, f"Cancel {label}", "Reason for cancellation:")
         if not ok or not reason.strip():
             return
         try:
@@ -315,11 +357,13 @@ class InvoiceListPage(QWidget):
             QMessageBox.information(self, "Select invoice", "Select an invoice to void.")
             return
         if inv.is_void or inv.is_cancelled or inv.is_draft:
+            label = "Quote" if inv.is_quote else "Invoice"
             QMessageBox.information(
-                self, "Cannot void", "Invoice is already void, cancelled, or a draft."
+                self, "Cannot void", f"{label} is already void, cancelled, or a draft."
             )
             return
-        reason, ok = QInputDialog.getText(self, "Void Invoice", "Reason for voiding:")
+        label = "Quote" if inv.is_quote else "Invoice"
+        reason, ok = QInputDialog.getText(self, f"Void {label}", "Reason for voiding:")
         if not ok or not reason.strip():
             return
         try:
@@ -335,17 +379,21 @@ class InvoiceListPage(QWidget):
             QMessageBox.information(self, "Select invoice", "Select an invoice.")
             return
         if inv.is_draft:
-            QMessageBox.information(self, "Not issued", "Draft invoices cannot be exported.")
+            QMessageBox.information(self, "Not issued", "Draft documents cannot be exported.")
             return
         try:
-            settings = self._invoice_settings()
+            settings = self._document_settings()
+            folder = "quotes" if inv.is_quote else "invoices"
             xlsx_path = (
                 self._context.config.get_documents_directory()
-                / "invoices"
+                / folder
                 / str(cast(date, inv.issue_date).year)
                 / f"{inv.number}.xlsx"
             )
-            generate_invoice_xlsx(inv, settings, xlsx_path)
+            if inv.is_quote:
+                generate_quote_xlsx(inv, settings, xlsx_path)
+            else:
+                generate_invoice_xlsx(inv, settings, xlsx_path)
             os.startfile(str(xlsx_path))
             QMessageBox.information(self, "Excel saved", f"Saved {xlsx_path}")
         except Exception as exc:  # noqa: BLE001
@@ -357,23 +405,27 @@ class InvoiceListPage(QWidget):
             QMessageBox.information(self, "Select invoice", "Select an invoice.")
             return
         if inv.is_draft:
-            QMessageBox.information(self, "Not issued", "Draft invoices cannot be exported.")
+            QMessageBox.information(self, "Not issued", "Draft documents cannot be exported.")
             return
         try:
-            settings = self._invoice_settings()
+            settings = self._document_settings()
+            folder = "quotes" if inv.is_quote else "invoices"
             docx_path = (
                 self._context.config.get_documents_directory()
-                / "invoices"
+                / folder
                 / str(cast(date, inv.issue_date).year)
                 / f"{inv.number}.docx"
             )
-            generate_invoice_docx(inv, settings, docx_path)
+            if inv.is_quote:
+                generate_quote_docx(inv, settings, docx_path)
+            else:
+                generate_invoice_docx(inv, settings, docx_path)
             os.startfile(str(docx_path))
             QMessageBox.information(self, "Word saved", f"Saved {docx_path}")
         except Exception as exc:  # noqa: BLE001
             QMessageBox.warning(self, "Word failed", str(exc))
 
-    def _invoice_settings(self) -> dict[str, Any]:
+    def _document_settings(self) -> dict[str, Any]:
         keys = [
             "business_name",
             "business_address",
@@ -388,6 +440,7 @@ class InvoiceListPage(QWidget):
             "invoice_title",
             "invoice_date_label",
             "invoice_due_date_label",
+            "invoice_due_date_na_text",
             "invoice_client_label",
             "invoice_address_label",
             "invoice_description_header",
@@ -399,6 +452,8 @@ class InvoiceListPage(QWidget):
             "invoice_subtotal_label",
             "invoice_gst_label",
             "invoice_total_label",
+            "invoice_amount_paid_label",
+            "invoice_balance_due_label",
             "invoice_payment_details_label",
             "invoice_bank_label",
             "invoice_bsb_label",
@@ -406,6 +461,27 @@ class InvoiceListPage(QWidget):
             "invoice_account_name_label",
             "invoice_notes_label",
             "invoice_thank_you",
+            "invoice_payment_terms_note",
+            "invoice_gst_footer_note",
+        ] + [
+            "quote_title",
+            "quote_title_tax",
+            "quote_date_label",
+            "quote_due_date_label",
+            "quote_due_date_na_text",
+            "quote_subtotal_label",
+            "quote_gst_label",
+            "quote_total_label",
+            "quote_amount_paid_label",
+            "quote_balance_due_label",
+            "quote_payment_details_label",
+            "quote_bank_label",
+            "quote_bsb_label",
+            "quote_account_label",
+            "quote_account_name_label",
+            "quote_notes_label",
+            "quote_thank_you",
+            "quote_footer_note",
         ]
         return {k: self._context.setting_repo.get(k) for k in keys}
 
@@ -415,17 +491,21 @@ class InvoiceListPage(QWidget):
             QMessageBox.information(self, "Select invoice", "Select an invoice.")
             return
         if inv.is_draft:
-            QMessageBox.information(self, "Not issued", "Draft invoices do not have a PDF.")
+            QMessageBox.information(self, "Not issued", "Draft documents do not have a PDF.")
             return
         try:
-            settings = self._invoice_settings()
+            settings = self._document_settings()
+            folder = "quotes" if inv.is_quote else "invoices"
             pdf_path = (
                 self._context.config.get_documents_directory()
-                / "invoices"
+                / folder
                 / str(cast(date, inv.issue_date).year)
                 / f"{inv.number}.pdf"
             )
-            generate_invoice_pdf(inv, settings, pdf_path)
+            if inv.is_quote:
+                generate_quote_pdf(inv, settings, pdf_path)
+            else:
+                generate_invoice_pdf(inv, settings, pdf_path)
             inv.pdf_path = str(pdf_path)
             self._context.session.commit()
             os.startfile(str(pdf_path))
@@ -457,10 +537,29 @@ class InvoiceListPage(QWidget):
         except Exception as exc:  # noqa: BLE001
             QMessageBox.warning(self, "Duplicate failed", str(exc))
 
+    def _upgrade_quote(self) -> None:
+        inv = self._selected_invoice()
+        if inv is None:
+            QMessageBox.information(self, "Select quote", "Select a quote to upgrade.")
+            return
+        if not inv.is_quote:
+            QMessageBox.information(self, "Not a quote", "Select a quote to upgrade.")
+            return
+        try:
+            self._context.invoice_service.convert_quote_to_invoice(inv)
+            self._context.session.commit()
+            self.refresh()
+            QMessageBox.information(self, "Upgraded", f"Quote upgraded to invoice {inv.number}.")
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.warning(self, "Upgrade failed", str(exc))
+
     def _generate_reminder(self) -> None:
         inv = self._selected_invoice()
         if inv is None:
             QMessageBox.information(self, "Select invoice", "Select an invoice.")
+            return
+        if inv.is_quote:
+            QMessageBox.information(self, "Cannot remind", "Reminders are not sent for quotes.")
             return
         if inv.is_draft or inv.is_void or inv.is_cancelled:
             QMessageBox.information(
@@ -496,6 +595,9 @@ class InvoiceListPage(QWidget):
         inv = self._selected_invoice()
         if inv is None:
             QMessageBox.information(self, "Select invoice", "Select an invoice.")
+            return
+        if inv.is_quote:
+            QMessageBox.information(self, "Cannot write off", "Quotes cannot be written off.")
             return
         if inv.is_draft or inv.is_void or inv.is_cancelled:
             QMessageBox.information(
@@ -548,8 +650,9 @@ class InvoiceListPage(QWidget):
             QMessageBox.information(self, "Select invoice", "Select an invoice to retract.")
             return
         if inv.is_draft or inv.is_void or inv.is_cancelled:
+            label = "quote" if inv.is_quote else "invoice"
             QMessageBox.information(
-                self, "Cannot retract", "Only issued invoices can be retracted."
+                self, "Cannot retract", f"Only issued {label}s can be retracted."
             )
             return
         try:
@@ -583,6 +686,9 @@ class InvoiceListPage(QWidget):
         if inv is None:
             QMessageBox.information(self, "Select invoice", "Select an invoice to record payment for.")
             return
+        if inv.is_quote:
+            QMessageBox.information(self, "Cannot record payment", "Payments cannot be recorded against quotes.")
+            return
         if inv.is_draft or inv.is_void or inv.is_cancelled:
             QMessageBox.information(
                 self, "Cannot record payment", "Only issued invoices can receive payments."
@@ -596,6 +702,9 @@ class InvoiceListPage(QWidget):
         inv = self._selected_invoice()
         if inv is None:
             QMessageBox.information(self, "Select invoice", "Select an invoice to issue a receipt for.")
+            return
+        if inv.is_quote:
+            QMessageBox.information(self, "Cannot issue receipt", "Receipts cannot be issued for quotes.")
             return
         if not inv.payments:
             QMessageBox.information(self, "No payments", "This invoice has no recorded payments.")
@@ -612,13 +721,16 @@ class InvoiceListPage(QWidget):
         menu.addAction("Edit", self._edit_invoice)
         menu.addAction("Duplicate", self._duplicate_invoice)
         menu.addAction("History", self._show_history)
+        if inv.is_quote:
+            menu.addAction("Upgrade to invoice", self._upgrade_quote)
         menu.addSeparator()
-        menu.addAction("Record payment", self.record_payment_selected)
-        menu.addAction("Issue receipt", self.issue_receipt_selected)
-        menu.addAction("Credit note", self._credit_note)
-        menu.addAction("Write off balance", self._write_off_balance)
-        menu.addAction("Reminder", self._generate_reminder)
-        menu.addSeparator()
+        if not inv.is_quote:
+            menu.addAction("Record payment", self.record_payment_selected)
+            menu.addAction("Issue receipt", self.issue_receipt_selected)
+            menu.addAction("Credit note", self._credit_note)
+            menu.addAction("Write off balance", self._write_off_balance)
+            menu.addAction("Reminder", self._generate_reminder)
+            menu.addSeparator()
         menu.addAction("Retract to draft", self.retract_selected)
         menu.addAction("Reissue", self.reissue_selected)
         menu.addAction("Cancel", self._cancel_invoice)

@@ -9,6 +9,7 @@ from typing import Any
 
 class InvoiceStatus(StrEnum):
     DRAFT = "draft"
+    QUOTED = "quoted"
     ISSUED = "issued"
     PART_PAID = "part_paid"
     PAID = "paid"
@@ -33,12 +34,15 @@ def derive_invoice_status(
     due_date: date | str | None,
     is_cancelled: bool = False,
     is_void: bool = False,
+    is_quote: bool = False,
     today: date | None = None,
 ) -> InvoiceStatus:
     """Derive the display status from financial facts only.
 
     The order of precedence is: void > cancelled > paid/credited > part paid >
-    overdue > issued > draft.
+    overdue > issued > quoted > draft.
+    Quotes are treated as a distinct status unless they have been voided or
+    cancelled.
     """
     if today is None:
         today = date.today()
@@ -46,6 +50,8 @@ def derive_invoice_status(
         return InvoiceStatus.VOID
     if is_cancelled:
         return InvoiceStatus.CANCELLED
+    if is_quote:
+        return InvoiceStatus.QUOTED
     if balance_cents <= 0:
         if invoice_total_cents <= 0:
             return InvoiceStatus.CANCELLED

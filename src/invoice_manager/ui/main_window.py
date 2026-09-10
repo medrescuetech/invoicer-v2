@@ -157,6 +157,8 @@ class MainWindow(QMainWindow):
         invoices_menu = menu_bar.addMenu("Invoices")
         new_inv_action = invoices_menu.addAction("New Invoice")
         new_inv_action.triggered.connect(self._open_new_invoice)
+        new_quote_action = invoices_menu.addAction("New Quote")
+        new_quote_action.triggered.connect(self._open_new_quote)
         edit_inv_action = invoices_menu.addAction("Modify selected")
         edit_inv_action.triggered.connect(self._modify_selected_invoice)
         retract_inv_action = invoices_menu.addAction("Retract to draft")
@@ -208,6 +210,13 @@ class MainWindow(QMainWindow):
 
     def _open_new_invoice(self) -> None:
         dlg = InvoiceEditorDialog(self._context, parent=self)
+        if dlg.exec() == 1 and self._invoices_page is not None:
+            self._invoices_page.refresh()
+
+    def _open_new_quote(self) -> None:
+        dlg = InvoiceEditorDialog(self._context, parent=self)
+        if hasattr(dlg, "_document_type"):
+            dlg._document_type.setCurrentText("Quote")
         if dlg.exec() == 1 and self._invoices_page is not None:
             self._invoices_page.refresh()
 

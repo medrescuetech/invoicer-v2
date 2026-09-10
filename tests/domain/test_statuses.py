@@ -67,3 +67,15 @@ def test_cancelled_takes_precedence():
         )
         == InvoiceStatus.CANCELLED
     )
+
+
+def test_quote_status():
+    assert (
+        derive_invoice_status(
+            invoice_total_cents=1000,
+            balance_cents=1000,
+            due_date=None,
+            is_quote=True,
+        )
+        == InvoiceStatus.QUOTED
+    )

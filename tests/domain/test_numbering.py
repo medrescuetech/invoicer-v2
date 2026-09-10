@@ -8,6 +8,7 @@ def test_format_number():
 
 def test_parse_number():
     assert parse_number("INV-0001") == ("INV", 1)
+    assert parse_number("QTE-0001") == ("QTE", 1)
     assert parse_number("0001") == ("", 1)
     assert parse_number("not-a-number") is None
 
@@ -15,6 +16,7 @@ def test_parse_number():
 def test_reserve_advances():
     svc = NumberingService()
     assert svc.reserve("invoice") == "INV-0001"
+    assert svc.reserve("quote") == "QTE-0001"
     assert svc.reserve("invoice") == "INV-0002"
     assert svc.peek("invoice") == "INV-0003"
 

@@ -92,3 +92,55 @@ def test_invoice_pdf_includes_custom_unit(tmp_path):
     with pdfplumber.open(output) as pdf:
         text = " ".join(page.extract_text() or "" for page in pdf.pages)
     assert "hour" in text
+
+
+def test_quote_pdf_title_and_na_due_date(tmp_path):
+    from invoice_manager.documents.invoice_pdf import generate_quote_pdf
+
+    client = Client(name="Acme Corp")
+    quote = Invoice(
+        number="QTE-0001",
+        sequence_number=1,
+        issue_date=date(2026, 1, 15),
+        due_date=None,
+        client=client,
+        client_name=client.name,
+        client_address="123 Main St",
+        subtotal_cents=10000,
+        gst_cents=1000,
+        total_cents=11000,
+        is_draft=False,
+    )
+    quote.items.append(
+        InvoiceItem(
+            description="Quote item",
+            quantity=1,
+            unit="ea",
+            unit_price_cents=10000,
+            taxable=True,
+            subtotal_cents=10000,
+            gst_cents=1000,
+            total_cents=11000,
+            sort_order=0,
+        )
+    )
+    settings = {
+        "business_name": "Test Business",
+        "gst_rate": Decimal("0.10"),
+        "quote_title": "QUOTE",
+        "quote_date_label": "Quote date:",
+        "quote_due_date_label": "Valid until:",
+        "quote_due_date_na_text": "N/A",
+    }
+    output = tmp_path / "quote.pdf"
+    generate_quote_pdf(quote, settings, output)
+    with pdfplumber.open(output) as pdf:
+        text = " ".join(page.extract_text() or "" for page in pdf.pages)
+    assert "QTE-0001" in text
+    assert "QUOTE" in text
+    assert "N/A" in text
+    assert "Quote date:" in text
+    # Payment details should not appear on quotes
+    assert "Payment details" not in text
+    # Amount paid/balance due should not appear on quotes
+    assert "Amount Paid" not in text

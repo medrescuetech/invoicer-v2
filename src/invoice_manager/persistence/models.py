@@ -114,6 +114,11 @@ class Invoice(Base):
     items: Mapped[list[InvoiceItem]] = relationship(
         "InvoiceItem", back_populates="invoice", cascade="all, delete-orphan"
     )
+
+    @property
+    def is_quote(self) -> bool:
+        """Return True when this record is a quote based on its number prefix."""
+        return (self.number or "").upper().startswith("QTE")
     payments: Mapped[list[Payment]] = relationship(
         "Payment", back_populates="invoice", cascade="all, delete-orphan"
     )
