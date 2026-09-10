@@ -26,7 +26,7 @@
 If you prefer not to install, use the standalone executable:
 
 ```
-dist\2.0.8\InvoiceReceiptManager-2.0.8.exe
+dist\InvoiceReceiptManager-2.0.8.exe
 ```
 
 By default the executable stores data, documents, and logs in `%LOCALAPPDATA%\InvoiceReceiptManager`. To make it store data next to the executable, create or place a `data` folder in the same directory as the `.exe` before running it. The application will then use that folder instead of `%LOCALAPPDATA%`.
