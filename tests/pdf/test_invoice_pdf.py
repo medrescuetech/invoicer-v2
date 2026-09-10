@@ -144,3 +144,44 @@ def test_quote_pdf_title_and_na_due_date(tmp_path):
     assert "Payment details" not in text
     # Amount paid/balance due should not appear on quotes
     assert "Amount Paid" not in text
+
+
+def test_invoice_pdf_wraps_long_description(tmp_path):
+    client = Client(name="Acme Corp")
+    long_description = (
+        "This is a very long description that should wrap across multiple lines in the "
+        "invoice PDF table instead of being rendered on a single line."
+    )
+    invoice = Invoice(
+        number="INV-0003",
+        sequence_number=3,
+        issue_date=date(2026, 1, 15),
+        due_date=date(2026, 2, 15),
+        client=client,
+        client_name=client.name,
+        client_address="",
+        subtotal_cents=10000,
+        gst_cents=1000,
+        total_cents=11000,
+        is_draft=False,
+    )
+    invoice.items.append(
+        InvoiceItem(
+            description=long_description,
+            quantity=1,
+            unit="ea",
+            unit_price_cents=10000,
+            taxable=True,
+            subtotal_cents=10000,
+            gst_cents=1000,
+            total_cents=11000,
+            sort_order=0,
+        )
+    )
+    settings = {"business_name": "Test", "gst_rate": Decimal("0.10")}
+    output = tmp_path / "invoice_long_desc.pdf"
+    generate_invoice_pdf(invoice, settings, output)
+    with pdfplumber.open(output) as pdf:
+        text = " ".join(page.extract_text() or "" for page in pdf.pages)
+    assert "This is a very long description" in text
+    assert "INV-0003" in text

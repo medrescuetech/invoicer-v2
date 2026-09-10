@@ -151,7 +151,8 @@ def _generate_xlsx(invoice: Invoice, settings: dict[str, Any], output_path: Path
     row += 1
 
     for item in invoice.items:
-        sheet.cell(row=row, column=1, value=item.description)
+        desc_cell = sheet.cell(row=row, column=1, value=item.description)
+        desc_cell.alignment = Alignment(wrap_text=True, vertical="top")
         sheet.cell(row=row, column=2, value=item.quantity)
         sheet.cell(row=row, column=3, value=item.unit or "ea")
         sheet.cell(row=row, column=4, value=_fmt(item.unit_price_cents))
@@ -231,8 +232,9 @@ def _generate_xlsx(invoice: Invoice, settings: dict[str, Any], output_path: Path
     if thank_you:
         _write_cell(sheet, row, 1, thank_you, bold=True)
 
-    for col in range(1, 8):
-        sheet.column_dimensions[chr(64 + col)].auto_size = True
+    column_widths = [50, 8, 12, 14, 12, 16, 16]
+    for col, width in enumerate(column_widths, 1):
+        sheet.column_dimensions[chr(64 + col)].width = width
 
     workbook.save(output_path)
     return output_path

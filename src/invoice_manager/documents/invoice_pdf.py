@@ -123,10 +123,11 @@ class InvoicePDFBuilder:
                 self._label("invoice_total_header", "Total"),
             ]
         ]
+        normal_style = styles["Normal"]
         for item in self.invoice.items:
             data.append(
                 [
-                    item.description,
+                    Paragraph(item.description, normal_style),
                     str(item.quantity),
                     item.unit or "ea",
                     self._fmt(item.unit_price_cents),
@@ -168,6 +169,7 @@ class InvoicePDFBuilder:
                     ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
                     ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
                     ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("VALIGN", (0, 0), (0, -1), "TOP"),
                     ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
                     ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
                     ("FONTNAME", (0, -summary_rows), (-1, -1), "Helvetica-Bold"),

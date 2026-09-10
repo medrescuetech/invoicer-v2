@@ -8,6 +8,7 @@ from typing import Any
 
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.shared import Inches
 
 from invoice_manager.domain.money import Money
 from invoice_manager.persistence.models import Invoice
@@ -90,6 +91,11 @@ def _generate_docx(invoice: Invoice, settings: dict[str, Any], output_path: Path
 
     table = document.add_table(rows=1, cols=6)
     table.style = "Table Grid"
+    table.autofit = False
+    table.allow_autofit = False
+    widths = [Inches(3.0), Inches(0.55), Inches(0.75), Inches(0.9), Inches(0.75), Inches(0.9)]
+    for idx, width in enumerate(widths):
+        table.columns[idx].width = width
     hdr_cells = table.rows[0].cells
     headers = [
         _label(settings, "invoice_description_header", is_quote, "Description"),
