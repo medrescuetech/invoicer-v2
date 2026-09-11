@@ -26,7 +26,7 @@
 If you prefer not to install, use the standalone executable:
 
 ```
-dist\InvoiceReceiptManager-2.0.9.exe
+dist\InvoiceReceiptManager-2.0.10.exe
 ```
 
 By default the executable stores data, documents, and logs in `%LOCALAPPDATA%\InvoiceReceiptManager`. To make it store data next to the executable, create or place a `data` folder in the same directory as the `.exe` before running it. The application will then use that folder instead of `%LOCALAPPDATA%`.
@@ -36,15 +36,15 @@ By default the executable stores data, documents, and logs in `%LOCALAPPDATA%\In
 A ready-to-go portable archive is also available:
 
 ```
-dist\InvoiceReceiptManager_2.0.9_Portable.zip
+dist\InvoiceReceiptManager_2.0.10_Portable.zip
 ```
 
 To move the whole program and all your data to another location:
 
 1. Close the application.
-2. Extract `InvoiceReceiptManager_2.0.9_Portable.zip` to the desired folder (for example, a OneDrive or USB folder).
+2. Extract `InvoiceReceiptManager_2.0.10_Portable.zip` to the desired folder (for example, a OneDrive or USB folder).
 3. The archive contains the `.exe` plus the full data tree (`data/`, `documents/`, `exports/`, `backups/`, `logs/`, and `config.json`).
-4. Run `InvoiceReceiptManager-2.0.9.exe` from that folder. It will use the local data automatically.
+4. Run `InvoiceReceiptManager-2.0.10.exe` from that folder. It will use the local data automatically.
 
 ## First run
 
@@ -75,6 +75,6 @@ Use **Windows Settings > Apps > Invoice & Receipt Manager > Uninstall**. This re
 
 ## Troubleshooting
 
-- **Only one instance can run at a time.** If the app does not open, check the Task Manager for a lingering `InvoiceReceiptManager-2.0.9.exe` process.
+- **Only one instance can run at a time.** If the app does not open, check the Task Manager for a lingering `InvoiceReceiptManager-2.0.10.exe` process.
 - **Missing PDFs:** ensure `reportlab` and the application data directory are accessible. PDFs are written to `%LOCALAPPDATA%\InvoiceReceiptManager\documents`.
 - **Install error:** run the installer as Administrator if you chose a protected folder such as `C:\Program Files`.

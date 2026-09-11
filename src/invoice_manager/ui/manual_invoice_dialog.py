@@ -243,7 +243,7 @@ class ManualInvoiceDialog(QDialog):
                 taxable_item is not None and taxable_item.checkState() == Qt.CheckState.Checked,
                 gst_rate,
             )
-            total_item = self._table.item(row, 5)
+            total_item = self._table.item(row, 6)
             if total_item is not None:
                 total_item.setText(f"${line_total / 100:.2f}")
             subtotal += line_subtotal

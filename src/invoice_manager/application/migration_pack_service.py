@@ -27,7 +27,7 @@ class MigrationPackService:
 
     MANIFEST_NAME = "migration_pack_manifest.json"
     PACK_VERSION = "1.0"
-    APP_VERSION = "2.0.9"
+    APP_VERSION = "2.0.10"
 
     _PATH_KEYS = {
         "data_dir",
