@@ -44,10 +44,10 @@ class AppConfig:
     def _default_base_dir(cls) -> Path:
         if getattr(sys, "frozen", False):
             # For PyInstaller one-file builds, sys.argv[0] is the outer
-            # executable. Use the folder containing the exe if a local data
-            # tree has been placed there (portable mode).
+            # executable. Use the folder containing the exe only if a local
+            # data tree exists and the directory is actually writable.
             exe_dir = Path(sys.argv[0]).resolve().parent
-            if (exe_dir / "data").is_dir():
+            if (exe_dir / "data").is_dir() and os.access(exe_dir, os.W_OK):
                 return exe_dir
         local_app_data = os.environ.get("LOCALAPPDATA")
         if local_app_data:

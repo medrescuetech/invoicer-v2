@@ -1,8 +1,8 @@
 ; Inno Setup script for Invoice & Receipt Manager v2
 #define MyAppName "Invoice & Receipt Manager"
-#define MyAppVersion "2.0.10"
+#define MyAppVersion "2.0.11"
 #define MyAppPublisher "Gillams Software"
-#define MyAppExeName "InvoiceReceiptManager-2.0.10.exe"
+#define MyAppExeName "InvoiceReceiptManager-2.0.11.exe"
 
 [Setup]
 AppId={{8A2B9C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6D}

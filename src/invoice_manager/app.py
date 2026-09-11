@@ -56,7 +56,7 @@ def main() -> int:
 
         app = QApplication(sys.argv)
         app.setApplicationName("Invoice & Receipt Manager")
-        app.setApplicationVersion("2.0.10")
+        app.setApplicationVersion("2.0.11")
 
         current_user = run_login_flow(config)
         if not current_user:
