@@ -9,7 +9,7 @@ from invoice_manager.application.ledger_service import LedgerService
 from invoice_manager.domain.numbering import NumberingService
 from invoice_manager.domain.statuses import derive_invoice_status
 from invoice_manager.infrastructure.audit import AuditService
-from invoice_manager.persistence.models import Invoice, Payment, Receipt
+from invoice_manager.persistence.models import CreditNote, Invoice, Payment, Receipt
 from invoice_manager.persistence.repositories import (
     InvoiceRepository,
     PaymentRepository,
@@ -186,8 +186,15 @@ class PaymentService:
         self._persist_numbering()
 
     def _update_invoice_status(self, invoice: Invoice) -> None:
-        total_paid = sum(p.amount_cents for p in invoice.payments if not p.is_reversed)
-        total_credited = sum(c.amount_cents for c in invoice.credits)
+        # Query the database directly so newly-created payments are counted even
+        # when the invoice object was loaded before the payment was added.
+        total_paid = sum(p.amount_cents for p in self.list_by_invoice(invoice) if not p.is_reversed)
+        total_credited = sum(
+            c.amount_cents
+            for c in self._payment_repo._session.query(CreditNote)
+            .filter(CreditNote.invoice_id == invoice.id)
+            .all()
+        )
         balance = invoice.total_cents - total_paid - total_credited
         invoice.status = derive_invoice_status(
             invoice_total_cents=invoice.total_cents,
