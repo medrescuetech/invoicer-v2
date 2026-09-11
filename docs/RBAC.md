@@ -1,6 +1,6 @@
 # RBAC levels — Invoice & Receipt Manager
 
-## Current state in v2.0.8
+## Current state in v2.0.9
 
 **There is effectively no RBAC in the application today.** There is one hard-coded role and no permission enforcement.
 

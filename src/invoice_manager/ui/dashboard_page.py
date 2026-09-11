@@ -74,8 +74,8 @@ class DashboardPage(QWidget):
             balance = invoice_balance_cents(inv)
             if balance > 0:
                 unpaid_total += balance
-                due = cast(date, inv.due_date)
-                if due < today:
+                due = inv.due_date
+                if due is not None and cast(date, due) < today:
                     overdue_count += 1
                     overdue_total += balance
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QTimer, Signal
 from sqlalchemy import event
 
 from invoice_manager.application.invoice_service import InvoiceService
@@ -37,7 +37,13 @@ class AppContext(QObject):
         self.database = Database(config.database_url())
         self.database.create_schema()
         self.session = self.database.new_session()
-        event.listen(self.session, "after_commit", lambda _session: self.data_changed.emit())
+        # Defer the signal so consumers do not query the session while it is still
+        # inside the commit event.
+        event.listen(
+            self.session,
+            "after_commit",
+            lambda _session: QTimer.singleShot(0, self.data_changed.emit),
+        )
         self.file_store = FileStore(config.get_data_directory())
 
         self.client_repo = ClientRepository(self.session)

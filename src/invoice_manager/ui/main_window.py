@@ -9,6 +9,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
+    QApplication,
     QFileDialog,
     QHBoxLayout,
     QInputDialog,
@@ -25,6 +26,10 @@ from PySide6.QtWidgets import (
 
 from invoice_manager.application.backup_service import BackupService, BackupServiceError
 from invoice_manager.application.export_service import DataExportService, DataExportServiceError
+from invoice_manager.application.migration_pack_service import (
+    MigrationPackError,
+    MigrationPackService,
+)
 from invoice_manager.documents.accountant_pack_pdf import generate_accountant_pack_pdf
 from invoice_manager.documents.blank_invoice_docx import generate_blank_invoice_docx
 from invoice_manager.domain.tax_year import TaxYear
@@ -188,6 +193,10 @@ class MainWindow(QMainWindow):
         accountant_action.triggered.connect(self._generate_accountant_pack)
         export_action = tools_menu.addAction("Export all data...")
         export_action.triggered.connect(self._export_all_data)
+        export_pack_action = tools_menu.addAction("Export pack...")
+        export_pack_action.triggered.connect(self._export_pack)
+        import_pack_action = tools_menu.addAction("Import pack...")
+        import_pack_action.triggered.connect(self._import_pack)
         blank_word_action = tools_menu.addAction("Blank invoice (Word)...")
         blank_word_action.triggered.connect(self._generate_blank_invoice_word)
         tools_menu.addSeparator()
@@ -316,6 +325,71 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Export complete", f"Saved: {archive}")
         except DataExportServiceError as exc:
             QMessageBox.warning(self, "Export failed", str(exc))
+
+    def _export_pack(self) -> None:
+        default_name = f"invoice_manager_pack_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export migration pack",
+            str(self._context.config.get_exports_directory() / default_name),
+            "Zip files (*.zip)",
+        )
+        if not path:
+            return
+        try:
+            MigrationPackService(self._context.config).export_pack(Path(path))
+            QMessageBox.information(self, "Export pack", f"Saved: {path}")
+        except MigrationPackError as exc:
+            QMessageBox.warning(self, "Export pack failed", str(exc))
+        except Exception as exc:  # noqa: BLE001
+            _log.exception("Export pack failed: %s", exc)
+            QMessageBox.warning(self, "Export pack failed", str(exc))
+
+    def _import_pack(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Import migration pack",
+            str(self._context.config.get_exports_directory()),
+            "Zip files (*.zip)",
+        )
+        if not path:
+            return
+
+        try:
+            MigrationPackService(self._context.config).validate_pack(Path(path))
+        except MigrationPackError as exc:
+            QMessageBox.warning(self, "Import pack", str(exc))
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Import migration pack",
+            "This will replace the current data, settings and documents with the pack contents.\n"
+            "A safety backup of the current data will be made first.\n\n"
+            "The application must restart after import. Continue?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            self._context.session.close()
+            self._context.database.engine.dispose()
+            safety = MigrationPackService(self._context.config).import_pack(Path(path))
+            QMessageBox.information(
+                self,
+                "Import complete",
+                f"Safety backup: {safety}\n\nPlease restart the application.",
+            )
+        except MigrationPackError as exc:
+            QMessageBox.critical(self, "Import pack failed", str(exc))
+        except Exception as exc:  # noqa: BLE001
+            _log.exception("Import pack failed: %s", exc)
+            QMessageBox.critical(self, "Import pack failed", str(exc))
+        finally:
+            app = QApplication.instance()
+            assert app is not None
+            app.quit()
 
     def _generate_blank_invoice_word(self) -> None:
         default_name = "blank_invoice.docx"

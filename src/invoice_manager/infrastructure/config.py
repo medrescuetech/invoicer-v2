@@ -70,7 +70,7 @@ class AppConfig:
             self.save(dict(self.DEFAULT_CONFIG))
 
     def db_path(self) -> Path:
-        return self.data_dir / "business.sqlite3"
+        return self.get_data_directory() / "business.sqlite3"
 
     def database_mode(self) -> str:
         if not self.REMOTE_DATABASE_ENABLED:
@@ -140,7 +140,7 @@ class AppConfig:
             path = Path(custom)
             path.mkdir(parents=True, exist_ok=True)
             return path
-        return self.base_dir
+        return self.data_dir
 
     def get_backup_directory(self) -> Path:
         return self.backups_dir
