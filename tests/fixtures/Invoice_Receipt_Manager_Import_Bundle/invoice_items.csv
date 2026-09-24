@@ -1,0 +1,5 @@
+invoice_source_key,position,service_code,description,quantity,unit,unit_price,discount_type,discount_value,taxable,gst_rate,subtotal,gst,total
+INV-0001,1,,First aid training setup charge and 10 certificates,1,each,600.00,none,0,no,0.00,600.00,0.00,600.00
+INV-0002,1,,Clinical Governance Meeting,1.5,hour,75.00,none,0,no,0.00,112.50,0.00,112.50
+INV-0003,1,,HLTAID011 pre-payment course completion certificate,2,each,60.00,none,0,no,0.00,120.00,0.00,120.00
+INV-0004,1,,Legacy invoice 0004 (line detail not available in source),1,each,85.00,none,0,no,0.00,85.00,0.00,85.00

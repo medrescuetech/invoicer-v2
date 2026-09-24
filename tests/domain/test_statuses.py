@@ -8,7 +8,7 @@ TODAY = date(2026, 6, 25)
 
 
 def test_full_invoice_status_table() -> None:
-    assert derive_status(total_cents=100, status_override="Draft") == InvoiceStatus.DRAFT
+    assert derive_status(total_cents=100, issued=False) == InvoiceStatus.DRAFT
     assert (
         derive_status(total_cents=100, due_date=date(2026, 6, 26), today=TODAY)
         == InvoiceStatus.ISSUED
@@ -40,3 +40,5 @@ def test_reversal_restores_issued_state() -> None:
 def test_only_allowed_overrides_are_stored() -> None:
     with pytest.raises(ValueError):
         derive_status(total_cents=100, status_override="Paid")
+    with pytest.raises(ValueError):
+        derive_status(total_cents=100, status_override="Draft")

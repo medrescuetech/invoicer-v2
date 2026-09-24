@@ -63,6 +63,10 @@ plugins = []
 module = ["invoice_manager.domain.*", "invoice_manager.application.*"]
 strict = true
 
+[[tool.mypy.overrides]]
+module = ["reportlab.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [

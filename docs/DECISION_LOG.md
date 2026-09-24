@@ -13,3 +13,4 @@ Accepted decisions from build specification Part L:
 9. Use GST-exclusive price entry by default.
 10. Overdue takes precedence over Part Paid whenever a positive balance remains past the due date.
 11. An invoice cleared by a mix of payments and credits is Paid; Credited is reserved for balances cleared purely by credits.
+12. GST rates are stored as decimal fractions: `0.1000` represents 10% GST. Percentage discounts remain values from 0 to 100.

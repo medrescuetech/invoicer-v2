@@ -16,9 +16,15 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from sqlalchemy.orm import Session
 
 from invoice_manager import __version__
+from invoice_manager.config import AppPaths
 from invoice_manager.ui.app_log import AppLogDialog
+from invoice_manager.ui.clients import ClientsView
+from invoice_manager.ui.invoice_editor import InvoiceEditorView
+from invoice_manager.ui.invoice_list import InvoiceListView
+from invoice_manager.ui.services import ServicesView
 
 DESTINATIONS = (
     "Dashboard",
@@ -38,6 +44,9 @@ class MainWindow(QMainWindow):
         user_display_name: str = "",
         data_location: Path | None = None,
         log_path: Path | None = None,
+        session: Session | None = None,
+        paths: AppPaths | None = None,
+        user_id: int | None = None,
     ) -> None:
         super().__init__()
         self.setWindowTitle("Invoicer V2")
@@ -48,20 +57,40 @@ class MainWindow(QMainWindow):
         for destination in DESTINATIONS:
             QListWidgetItem(destination, self.nav)
         self.pages = QStackedWidget()
+        resolved_paths = paths or AppPaths.resolve()
+        editor_view = InvoiceEditorView(session, paths=resolved_paths, user_id=user_id)
+        invoice_list_view = InvoiceListView(session, paths=resolved_paths, user_id=user_id)
+        invoice_list_view.invoice_selected.connect(editor_view.load_invoice)
         for destination in DESTINATIONS:
-            page = QWidget()
-            page_layout = QVBoxLayout(page)
-            title = QLabel(destination)
-            title.setStyleSheet("font-size: 24px; font-weight: 600;")
-            page_layout.addWidget(title)
-            if destination == "Dashboard":
-                text = "Your financial dashboard will arrive in a later phase."
+            page: QWidget
+            if destination == "New Invoice":
+                page = editor_view
+            elif destination == "Invoices":
+                page = invoice_list_view
+            elif destination == "Clients":
+                page = ClientsView(session, paths=resolved_paths, user_id=user_id)
+            elif destination == "Products & Services":
+                page = ServicesView(session, user_id=user_id)
             else:
-                text = f"{destination} will arrive in a later phase."
-            empty = QLabel(text)
-            empty.setWordWrap(True)
-            page_layout.addWidget(empty)
-            page_layout.addStretch()
+                page = QWidget()
+            if destination not in {
+                "Clients",
+                "Products & Services",
+                "New Invoice",
+                "Invoices",
+            }:
+                page_layout = QVBoxLayout(page)
+                title = QLabel(destination)
+                title.setStyleSheet("font-size: 24px; font-weight: 600;")
+                page_layout.addWidget(title)
+                if destination == "Dashboard":
+                    text = "Your financial dashboard will arrive in a later phase."
+                else:
+                    text = f"{destination} will arrive in a later phase."
+                empty = QLabel(text)
+                empty.setWordWrap(True)
+                page_layout.addWidget(empty)
+                page_layout.addStretch()
             self.pages.addWidget(page)
         self.nav.currentRowChanged.connect(self.pages.setCurrentIndex)
         self.nav.setCurrentRow(0)

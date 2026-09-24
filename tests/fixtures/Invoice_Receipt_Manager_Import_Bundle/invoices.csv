@@ -1,0 +1,5 @@
+source_key,original_number,invoice_date,due_date,client_source_key,reference,visible_notes,internal_notes,subtotal,gst,total,source
+INV-0001,0001,2026-04-29,2026-05-06,CLI-001,Training Allens,,"Old-system history screen showed this invoice as Paid; printed PDF says Unpaid. Payment imported from NAB advice 29/04/2026.",600.00,0.00,600.00,import
+INV-0002,0002,2026-06-05,2026-06-12,CLI-002,,,"Old-system history screen showed this invoice as Paid; printed PDF says Unpaid.",112.50,0.00,112.50,import
+INV-0003,0003,2026-06-19,2026-06-26,CLI-001,,"Reissued because SCJV added another student.","Single invoice retained; reissue history preserved as a migration issue.",120.00,0.00,120.00,import
+INV-0004,0004,2026-06-25,2026-07-02,CLI-003,,,"Line detail was not available in the source; total taken from receipt 0004-R.",85.00,0.00,85.00,import

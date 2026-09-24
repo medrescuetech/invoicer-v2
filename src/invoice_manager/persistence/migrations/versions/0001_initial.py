@@ -52,6 +52,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id"),
+        sqlite_autoincrement=True,
     )
     op.create_index(op.f("ix_clients_display_name"), "clients", ["display_name"], unique=False)
     op.create_table(
@@ -69,6 +70,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("missing_last_checked", sa.DateTime(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
+        sqlite_autoincrement=True,
     )
     op.create_index(op.f("ix_documents_entity_id"), "documents", ["entity_id"], unique=False)
     op.create_index(op.f("ix_documents_entity_type"), "documents", ["entity_type"], unique=False)
@@ -157,7 +159,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint(
-            "status_override IS NULL OR status_override IN ('Draft','Cancelled','Void')",
+            "status_override IS NULL OR status_override IN ('Cancelled','Void')",
             name="ck_invoice_override",
         ),
         sa.CheckConstraint(
@@ -166,6 +168,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["client_id"], ["clients.id"], ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
+        sqlite_autoincrement=True,
     )
     op.create_index(
         op.f("ix_invoices_canonical_number"), "invoices", ["canonical_number"], unique=True
@@ -227,6 +230,7 @@ def upgrade() -> None:
         sa.CheckConstraint("unit_price_cents >= 0", name="ck_service_price"),
         sa.ForeignKeyConstraint(["category_id"], ["categories.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
+        sqlite_autoincrement=True,
     )
     op.create_table(
         "credit_notes",
@@ -247,6 +251,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["invoice_id"], ["invoices.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
+        sqlite_autoincrement=True,
     )
     op.create_index(
         op.f("ix_credit_notes_canonical_number"), "credit_notes", ["canonical_number"], unique=True
@@ -325,6 +330,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["invoice_id"], ["invoices.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
+        sqlite_autoincrement=True,
     )
     op.create_index(op.f("ix_payments_invoice_id"), "payments", ["invoice_id"], unique=False)
     op.create_index(op.f("ix_payments_payment_date"), "payments", ["payment_date"], unique=False)
@@ -361,6 +367,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["payment_id"], ["payments.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("payment_id"),
+        sqlite_autoincrement=True,
     )
     op.create_index(
         op.f("ix_receipts_canonical_number"), "receipts", ["canonical_number"], unique=True

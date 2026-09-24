@@ -10,31 +10,31 @@ Phase 1 covers foundation concerns. Later workflows remain explicitly pending.
 | FR-AUTH-004 | Phase 1 | `tests/integration/test_auth.py` |
 | FR-AUTH-005 | Phase 1 | `tests/integration/test_auth.py` |
 | FR-AUTH-006 | Phase 1 | `tests/integration/test_auth.py` |
-| FR-CLI-001 | Pending Phase 2 | Pending |
-| FR-CLI-002 | Pending Phase 3 | Pending |
-| FR-CLI-003 | Pending Phase 2 | Pending |
-| FR-CLI-004 | Pending Phase 2 | Pending |
-| FR-CLI-005 | Pending Phase 5 | Pending |
-| FR-CLI-006 | Pending Phase 2 | Pending |
-| FR-SVC-001 | Pending Phase 2 | Pending |
-| FR-SVC-002 | Pending Phase 2 | Pending |
-| FR-SVC-003 | Pending Phase 3 | Pending |
-| FR-SVC-004 | Pending Phase 3 | Pending |
-| FR-INV-001 | Pending Phase 3 | Pending |
-| FR-INV-002 | Pending Phase 3 | Pending |
-| FR-INV-003 | Phase 1 | `tests/integration/test_numbering.py` |
-| FR-INV-004 | Pending Phase 3 | Pending |
+| FR-CLI-001 | Phase 2 | `tests/integration/test_phase2_services.py` |
+| FR-CLI-002 | Phase 2 | `tests/integration/test_phase2_services.py` |
+| FR-CLI-003 | Phase 2 | `tests/integration/test_phase2_services.py` |
+| FR-CLI-004 | Phase 2 | `tests/integration/test_phase2_services.py` |
+| FR-CLI-005 | Phase 2 | `tests/integration/test_phase2_services.py` |
+| FR-CLI-006 | Phase 2 | `tests/integration/test_phase2_services.py` |
+| FR-SVC-001 | Phase 2 | `tests/integration/test_phase2_services.py` |
+| FR-SVC-002 | Phase 2 | `tests/integration/test_phase2_services.py` |
+| FR-SVC-003 | Phase 2 | `tests/integration/test_phase2_services.py` |
+| FR-SVC-004 | Phase 2 | `tests/domain/test_invoice_calculations.py`, `tests/gui/test_invoice_views.py` |
+| FR-INV-001 | Phase 2 | `tests/integration/test_phase2_services.py`, `tests/gui/test_invoice_views.py` |
+| FR-INV-002 | Phase 2 | `tests/pdf/test_invoice_pdf.py` |
+| FR-INV-003 | Phase 2 | `tests/integration/test_phase2_services.py`, `tests/gui/test_invoice_views.py` |
+| FR-INV-004 | Phase 2 | `tests/integration/test_phase2_services.py` |
 | FR-INV-005 | Phase 1 | `tests/domain/test_money.py` |
 | FR-INV-006 | Pending Phase 3 | Pending |
 | FR-INV-007 | Phase 1 | `tests/domain/test_statuses.py` |
-| FR-INV-008 | Pending Phase 3 | Pending |
-| FR-INV-009 | Pending Phase 3 | Pending |
-| FR-INV-010 | Pending Phase 3 | Pending |
-| FR-INV-011 | Pending Phase 3 | Pending |
-| FR-INV-012 | Phase 1 | `tests/domain/test_statuses.py` |
+| FR-INV-008 | Phase 2 | `tests/integration/test_phase2_services.py`, `tests/gui/test_invoice_views.py` |
+| FR-INV-009 | Phase 2 | `tests/integration/test_phase2_services.py`, `tests/gui/test_invoice_views.py` |
+| FR-INV-010 | Phase 2 | `tests/integration/test_phase2_services.py` |
+| FR-INV-011 | Phase 2 | `tests/integration/test_phase2_services.py` |
+| FR-INV-012 | Phase 2 | `tests/integration/test_phase2_services.py` |
 | FR-INV-013 | Pending Phase 4 | Pending |
-| FR-INV-014 | Pending Phase 3 | Pending |
-| FR-INV-015 | Pending Phase 5 | Pending |
+| FR-INV-014 | Phase 2 | `tests/integration/test_phase2_services.py` |
+| FR-INV-015 | Phase 2 | `tests/integration/test_phase2_services.py`, `tests/gui/test_invoice_views.py` |
 | FR-PAY-001 | Pending Phase 4 | Pending |
 | FR-PAY-002 | Pending Phase 4 | Pending |
 | FR-PAY-003 | Phase 1 | `tests/domain/test_statuses.py` |

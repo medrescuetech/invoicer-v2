@@ -1,0 +1,16 @@
+{
+  "business_name": "Alexander Gillam",
+  "business_abn": "73 421 221 580",
+  "business_address": "",
+  "business_phone": "0404216564",
+  "business_email": "alex@gmedical.net.au",
+  "gst_registered": false,
+  "gst_rate": "0.00",
+  "bank_name": "ANZ",
+  "bank_bsb": "013202",
+  "bank_account": "307415227",
+  "bank_account_name": "AK GILLAM",
+  "payment_terms_days": 7,
+  "currency_symbol": "$",
+  "next_invoice_number": 5
+}

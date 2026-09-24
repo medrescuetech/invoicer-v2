@@ -20,16 +20,19 @@ class InvoiceStatus(StrEnum):
 def derive_status(
     *,
     total_cents: int,
+    issued: bool = True,
     payment_cents: int = 0,
     credit_cents: int = 0,
     due_date: date | None = None,
     today: date | None = None,
     status_override: str | None = None,
 ) -> InvoiceStatus:
-    if status_override in (InvoiceStatus.DRAFT, InvoiceStatus.CANCELLED, InvoiceStatus.VOID):
+    if status_override in (InvoiceStatus.CANCELLED, InvoiceStatus.VOID):
         return InvoiceStatus(status_override)
     if status_override:
-        raise ValueError("only Draft, Cancelled, and Void may be stored overrides")
+        raise ValueError("only Cancelled and Void may be stored overrides")
+    if not issued:
+        return InvoiceStatus.DRAFT
     balance = total_cents - payment_cents - credit_cents
     if balance <= 0:
         return (

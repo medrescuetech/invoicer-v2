@@ -1,0 +1,5 @@
+entity_type,entity_source_key,document_type,filename,sha256,mime_type,source
+invoice,INV-0001,invoice_pdf,invoice_0001.pdf,,application/pdf,import
+invoice,INV-0002,invoice_pdf,invoice_0002.pdf,,application/pdf,import
+invoice,INV-0003,invoice_pdf,invoice_0003.pdf,,application/pdf,import
+receipt,RCT-0004,receipt_pdf,receipt_0004-R.pdf,,application/pdf,import

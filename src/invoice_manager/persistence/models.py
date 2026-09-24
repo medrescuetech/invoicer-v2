@@ -53,6 +53,7 @@ class BusinessProfile(Base):
 
 class Client(Base):
     __tablename__ = "clients"
+    __table_args__ = {"sqlite_autoincrement": True}
     id: Mapped[int] = mapped_column(primary_key=True)
     display_name: Mapped[str] = mapped_column(String(200), index=True)
     legal_name: Mapped[str] = mapped_column(String(200), default="")
@@ -93,7 +94,10 @@ class ServiceItem(Base):
         ForeignKey("categories.id", ondelete="SET NULL")
     )
     active: Mapped[bool] = mapped_column(Boolean, default=True)
-    __table_args__ = (CheckConstraint("unit_price_cents >= 0", name="ck_service_price"),)
+    __table_args__ = (
+        CheckConstraint("unit_price_cents >= 0", name="ck_service_price"),
+        {"sqlite_autoincrement": True},
+    )
 
 
 class Invoice(Base):
@@ -140,12 +144,13 @@ class Invoice(Base):
     )
     __table_args__ = (
         CheckConstraint(
-            "status_override IS NULL OR status_override IN ('Draft','Cancelled','Void')",
+            "status_override IS NULL OR status_override IN ('Cancelled','Void')",
             name="ck_invoice_override",
         ),
         CheckConstraint(
             "subtotal_cents >= 0 AND gst_cents >= 0 AND total_cents >= 0", name="ck_invoice_money"
         ),
+        {"sqlite_autoincrement": True},
     )
 
 
@@ -200,11 +205,15 @@ class Payment(Base):
     reversal_reason: Mapped[str | None] = mapped_column(Text)
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
-    __table_args__ = (CheckConstraint("amount_cents > 0", name="ck_payment_positive"),)
+    __table_args__ = (
+        CheckConstraint("amount_cents > 0", name="ck_payment_positive"),
+        {"sqlite_autoincrement": True},
+    )
 
 
 class Document(Base):
     __tablename__ = "documents"
+    __table_args__ = {"sqlite_autoincrement": True}
     id: Mapped[int] = mapped_column(primary_key=True)
     entity_type: Mapped[str] = mapped_column(String(40), index=True)
     entity_id: Mapped[int] = mapped_column(Integer, index=True)
@@ -221,6 +230,7 @@ class Document(Base):
 
 class Receipt(Base):
     __tablename__ = "receipts"
+    __table_args__ = {"sqlite_autoincrement": True}
     id: Mapped[int] = mapped_column(primary_key=True)
     canonical_number: Mapped[str] = mapped_column(String(30), unique=True, index=True)
     original_number: Mapped[str | None] = mapped_column(String(80))
@@ -251,6 +261,7 @@ class CreditNote(Base):
         CheckConstraint(
             "subtotal_cents >= 0 AND gst_cents >= 0 AND total_cents >= 0", name="ck_credit_money"
         ),
+        {"sqlite_autoincrement": True},
     )
 
 

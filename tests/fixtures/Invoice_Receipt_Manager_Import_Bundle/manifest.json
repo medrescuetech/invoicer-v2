@@ -1,0 +1,40 @@
+{
+  "manifest_version": 1,
+  "source_description": "Historical baseline bundle for Invoice & Receipt Manager (build spec Part H, sections 36-39)",
+  "locale": "en-AU",
+  "currency": "AUD",
+  "date_format": "yyyy-mm-dd",
+  "money_format": "decimal dollars, GST-exclusive entry",
+  "files": [
+    "settings.json",
+    "clients.csv",
+    "invoices.csv",
+    "invoice_items.csv",
+    "payments.csv",
+    "receipts.csv",
+    "documents.csv",
+    "migration_issues.csv"
+  ],
+  "source_documents_dir": "source_documents",
+  "notes": [
+    "Due dates are derived from the 7-day payment terms in settings.json; the sources do not state them. Recorded as issue DERIVED-DUE-DATE.",
+    "The business was not GST registered in this period, so every line is non-taxable and GST is 0.00.",
+    "Legacy record 0001-1 / ERROR is deliberately absent from invoices.csv and present only in migration_issues.csv."
+  ],
+  "counts": {
+    "clients": 3,
+    "invoices": 4,
+    "invoice_items": 4,
+    "payments": 4,
+    "receipts": 1,
+    "documents": 4,
+    "migration_issues": 9
+  },
+  "totals": {
+    "invoiced": "917.50",
+    "gst": "0.00",
+    "payments": "917.50",
+    "balance": "0.00"
+  },
+  "next_invoice_number": 5
+}

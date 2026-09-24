@@ -52,6 +52,9 @@ def main() -> int:
                 getattr(user, "display_name", ""),
                 data_location=paths.root,
                 log_path=paths.logs / "app.log",
+                session=session,
+                paths=paths,
+                user_id=getattr(user, "id", None),
             )
             shell.show()
             return app.exec()

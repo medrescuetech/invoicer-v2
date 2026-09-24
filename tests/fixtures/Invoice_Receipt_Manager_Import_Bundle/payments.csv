@@ -1,0 +1,5 @@
+source_key,invoice_source_key,payment_date,amount,method,reference,notes,source,needs_review
+PAY-0001,INV-0001,2026-04-29,600.00,bank_transfer,Training Allens,"NAB advice dated 29/04/2026 confirms $600 paid to Alexander Gillam.",import,no
+PAY-0002,INV-0002,,112.50,unknown,,"Legacy status payment; date and evidence unknown and awaiting owner confirmation.",legacy,yes
+PAY-0003,INV-0003,,120.00,unknown,,"Legacy status payment; date and evidence unknown and awaiting owner confirmation.",legacy,yes
+PAY-0004,INV-0004,2026-06-25,85.00,bank_transfer,,"Confirmed by receipt 0004-R.",import,no

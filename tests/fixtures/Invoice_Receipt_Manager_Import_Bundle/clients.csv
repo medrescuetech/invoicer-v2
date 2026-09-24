@@ -1,0 +1,4 @@
+source_key,display_name,legal_name,abn,contact_name,email,phone,billing_address,default_terms_days,default_notes,active
+CLI-001,Town and Country Medical,,,Matt Franken,matt@townandcountrymedical.com.au,,,7,,yes
+CLI-002,Specialist Event Medical,,,Luke Smith,info@specialsteventmedical.com,,,7,,yes
+CLI-003,Chelsea Carr,,,,,,,7,,yes
